@@ -1,0 +1,3 @@
+# Stage 3 pseudo-label training overrides
+stage: pseudo_label
+pseudo_threshold: 0.9

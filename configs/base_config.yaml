@@ -1,0 +1,10 @@
+# Base hyperparameters for BirdCLEF 2026 experiments
+seed: 42
+sample_rate: 32000
+duration_sec: 5.0
+n_mels: 128
+batch_size: 32
+learning_rate: 0.0003
+weight_decay: 0.0001
+epochs: 20
+num_classes: 1

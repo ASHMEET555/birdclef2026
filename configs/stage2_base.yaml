@@ -1,0 +1,3 @@
+# Stage 2 base training overrides
+stage: base_train
+checkpoint: null
