@@ -1,0 +1,27 @@
+base_dir: Data
+out_dir: precomputed
+perch_path: E:\Machine Learning\kaggle\bird\birdclef2026\perch_model
+
+sr: 32000
+chunk_dur: 5.0
+chunk_samp: 160000
+
+perch_batch: 64
+warmup_passes: 5
+
+n_classes: 234
+secondary_soft: 0.3
+
+n_folds: 5
+random_state: 42
+
+gamma: -0.5
+rarity_clip: 10.0
+
+held_out_count: 10
+
+weight_inat: 0.5
+weight_xc_high: 1.0
+weight_xc_med: 0.8
+weight_xc_low: 0.6
+weight_unrated: 0.5
