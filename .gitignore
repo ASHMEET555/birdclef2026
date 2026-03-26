@@ -19,6 +19,7 @@ precompute.py
 %ashmeet555%/
 
 /data/
+/checkpoints
 download_kaggle_output.py
 precomputed.zip
 notebooks/02_precompute_kaggle_full.ipynb
