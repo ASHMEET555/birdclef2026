@@ -1,10 +1,88 @@
-# Base hyperparameters for BirdCLEF 2026 experiments
-seed: 42
-sample_rate: 32000
-duration_sec: 5.0
-n_mels: 128
-batch_size: 32
-learning_rate: 0.0003
-weight_decay: 0.0001
-epochs: 20
-num_classes: 1
+# Base hyperparameters shared across all configurations
+# This file contains the core ML parameters confirmed from 2025 2nd place solution
+# DO NOT CHANGE without explicit instruction and ablation validation
+
+project:
+  name: "birdclef2026"
+  seed: 42
+  num_classes: 234
+
+# Audio processing parameters (CRITICAL - confirmed from EDA)
+audio:
+  sample_rate: 32000
+  chunk_duration: 5.0
+  n_samples: 160000  # 5.0 * 32000
+  n_fft: 2048
+  hop_length: 512
+  n_mels: 128
+  f_min: 20  # NOT 50 - captures frog fundamentals at 200-500Hz
+  f_max: 16000  # Nyquist for 32kHz
+  top_db: 80
+  power: 2.0
+  # Output shape: [128, 313] for 5s chunk
+
+# Model architecture (confirmed optimal)
+model:
+  backbone: "efficientnet_b0"
+  pretrained: true
+  gem_p: 3.0
+  head_dropout: 0.25
+
+# Core training hyperparameters
+training:
+  epochs: 30
+  learning_rate: 5.0e-4
+  weight_decay: 1.0e-6
+  pin_memory: true
+  grad_clip: 1.0
+  warmup_epochs: 1
+  scheduler: "cosine"
+  min_lr: 1.0e-6
+
+# Loss function (ASL confirmed best for extreme imbalance)
+loss:
+  type: "asl"  # Options: asl, ce_smooth, focal, bce
+  gamma_neg: 4  # ASL: down-weight easy negatives (98% labels are negative)
+  gamma_pos: 0  # ASL: no modulation on positives
+  clip: 0.05  # ASL: probability margin clipping
+  label_smoothing: 0.05  # Used with ce_smooth
+
+# Label engineering
+labels:
+  secondary_weight: 0.3  # Weight for secondary species labels
+  # perch_alpha: varies by stage (0.0 = hard only, 0.7 = blend, 1.0 = soft only)
+
+# Augmentation suite (confirmed from ablations)
+augmentation:
+  use_mixup: true
+  mixup_alpha: 0.5  # Beta distribution parameter
+  mixup_prob: 0.5  # Apply MixUp to this fraction of batches
+  use_spec_augment: true
+  time_mask_max: 40  # Max time frames to mask
+  freq_mask_max: 20  # Max freq bins to mask
+  num_time_masks: 2
+  num_freq_masks: 2
+  use_random_eq: true  # RandomFiltering - random biquad EQ (+1% LB)
+  random_eq_prob: 0.5
+  use_gain: true
+  gain_db: 6.0  # Random gain ±6dB (bridges SNR gap)
+  use_background_noise: false  # Enable in Stage 3+
+
+# Cross-validation setup
+cv:
+  n_folds: 5
+  held_out_soundscape_files: 10  # Reserved from 66 labeled SC for validation
+
+# Postprocessing (confirmed improvements)
+postprocessing:
+  use_temporal_prior: true
+  use_topn: true
+  topn_n: 1  # TopN=1 confirmed +0.011 LB
+
+# Inference configuration
+inference:
+  stride_seconds: 2.5  # 50% overlap sliding window
+  batch_size: 64
+  num_threads: 4  # ONNX Runtime threads
+  use_fp16: false  # FP16 is SLOWER on CPU - always false
+  quantize_int8: true

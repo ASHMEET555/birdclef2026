@@ -1,0 +1,46 @@
+# Local debug configuration for quick testing
+# Minimal dataset size for fast pipeline verification
+# Usage: python src/train.py --config configs/local_debug.yaml
+
+_base: "base_config.yaml"
+
+# Local development paths
+paths:
+  base: "./data"
+  train_audio: "./data/train_audio"
+  train_meta: "./data/train.csv"  # train.csv is the metadata file
+  taxonomy: "./data/taxonomy.csv"
+  train_soundscapes: "./data/train_soundscapes"
+  train_sc_labels: "./data/train_soundscapes_labels.csv"
+  precomputed: "./precomputed"
+  checkpoints: "./checkpoints"
+  output: "./outputs"
+  experiments: "./experiments"
+
+# Quick debug training settings
+training:
+  epochs: 2  # Just 2 epochs to confirm pipeline runs
+  batch_size: 4  # Tiny batch for low-end GPUs
+  num_workers: 2
+
+# Stage 2: Hard labels only
+labels:
+  perch_alpha: 0.0  # Hard labels only for Stage 2
+
+# Debug mode settings
+debug:
+  enabled: true
+  mode: "quick_test"  # quick_test vs full_pipeline
+  max_samples: 50  # Use only 50 clips from train_audio
+  max_sc_windows: 20  # Use only 20 soundscape windows
+  save_kaggle_compatible: false  # Don't save full checkpoints
+
+# Local settings
+kaggle:
+  enabled: false
+  save_artifacts: false
+  internet_enabled: true
+
+# Validation settings
+validation:
+  use_soundscape_val: false  # Focal validation only for quick test

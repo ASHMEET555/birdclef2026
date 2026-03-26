@@ -1,0 +1,9 @@
+{
+  "num_classes": 234,
+  "backbone": "efficientnet_b0",
+  "pretrained": true,
+  "gem_p": 3.0,
+  "head_dropout": 0.25,
+  "use_time_conditioning": false,
+  "in_channels": 1
+}

@@ -1,0 +1,10 @@
+{
+  "sample_rate": 32000,
+  "n_fft": 2048,
+  "hop_length": 512,
+  "n_mels": 128,
+  "f_min": 20,
+  "f_max": 16000,
+  "power": 2.0,
+  "use_pcen": true
+}

@@ -1,3 +1,42 @@
-# Stage 2 base training overrides
-stage: base_train
+# Stage 2: Base training (clean train_audio only, no pseudo-labels)
+# Inherits kaggle_base.yaml for Kaggle environment
+# Usage: python src/train.py --config configs/stage2_base.yaml --fold 0
+
+_base: "kaggle_base.yaml"
+
+# Stage identifier for experiment tracking
+stage: "stage2_base"
+
+# No checkpoint to load (training from scratch with ImageNet pretrained backbone)
 checkpoint: null
+
+# Full 30-epoch training
+training:
+  epochs: 30
+  batch_size: 64  # Kaggle GPU can handle 64
+
+# Stage 2: Use hard labels only (no Perch soft labels yet)
+labels:
+  perch_alpha: 0.0  # 0 = hard labels only, prepare for Stage 3 Perch blending
+
+# Full augmentation suite enabled
+augmentation:
+  use_mixup: true
+  mixup_alpha: 0.5
+  mixup_prob: 0.5
+  use_spec_augment: true
+  use_random_eq: true
+  random_eq_prob: 0.5
+  use_gain: true
+  gain_db: 6.0
+  use_background_noise: false  # Not yet - enable in Stage 3+
+
+# ASL loss (optimal for extreme multi-label imbalance)
+loss:
+  type: "asl"
+  gamma_neg: 4
+  gamma_pos: 0
+  clip: 0.05
+
+# Stage 2 notes for experiment tracking
+notes: "Clean train_audio training with hard labels, ASL loss, full augmentation"

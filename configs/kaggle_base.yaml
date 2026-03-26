@@ -1,0 +1,35 @@
+# Kaggle-specific configuration for BirdCLEF 2026
+# This config is designed for Kaggle kernel execution with competition data paths
+# Usage: python src/train.py --config configs/kaggle_base.yaml --fold 0
+
+_base: "base_config.yaml"
+
+# Kaggle data paths (competition + dataset inputs)
+paths:
+  # Competition data
+  base: "/kaggle/input/birdclef-2026"
+  train_audio: "/kaggle/input/birdclef-2026/train_audio"
+  train_meta: "/kaggle/input/birdclef-2026/train_metadata.csv"
+  taxonomy: "/kaggle/input/birdclef-2026/taxonomy.csv"
+  train_soundscapes: "/kaggle/input/birdclef-2026/train_soundscapes"
+  train_sc_labels: "/kaggle/input/birdclef-2026/train_soundscapes_labels.csv"
+  test_soundscapes: "/kaggle/input/birdclef-2026/test_soundscapes"
+
+  # Precomputed dataset (uploaded separately)
+  precomputed: "/kaggle/input/birdclef-precompute/precomputed"
+
+  # Working directory outputs
+  checkpoints: "/kaggle/working/checkpoints"
+  output: "/kaggle/working/outputs"
+  experiments: "/kaggle/working/experiments"
+
+# Kaggle-specific training overrides
+training:
+  batch_size: 64  # Full Kaggle GPU capacity
+  num_workers: 4
+
+# Kaggle-specific settings
+kaggle:
+  enabled: true
+  save_artifacts: true  # Save models/logs to /kaggle/working
+  internet_enabled: false  # Assumes no internet in Kaggle kernel

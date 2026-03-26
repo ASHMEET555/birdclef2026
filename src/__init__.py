@@ -1,37 +1,17 @@
-"""Public exports for BirdCLEF 2026 precompute utilities."""
+"""BirdCLEF 2026 source package.
 
-from .audio import get_audio_duration, is_inat_file, load_and_chunk, load_audio, tile_pad
-from .features import (
-    compute_sample_weight,
-    cyclic_encode,
-    make_label_vector,
-    make_soundscape_label,
-    parse_soundscape_hour,
-)
-from .utils import (
-    build_output_dirs,
-    flush_perch_batch,
-    get_embedding_path,
-    load_embedding,
-    resume_filter,
-    warmup_perch,
-)
+This package contains all training, inference, and evaluation code.
+Modules are designed to be imported independently to avoid dependency issues.
 
-__all__ = [
-    "load_audio",
-    "tile_pad",
-    "load_and_chunk",
-    "get_audio_duration",
-    "is_inat_file",
-    "make_label_vector",
-    "make_soundscape_label",
-    "compute_sample_weight",
-    "parse_soundscape_hour",
-    "cyclic_encode",
-    "flush_perch_batch",
-    "warmup_perch",
-    "build_output_dirs",
-    "get_embedding_path",
-    "load_embedding",
-    "resume_filter",
-]
+Usage:
+    from src.loss import get_loss
+    from src.model import build_model
+    from src.train import train
+"""
+
+# Don't import anything by default to avoid forcing all dependencies
+# Users should import specific modules as needed
+
+__version__ = "0.1.0"
+
+__all__ = []

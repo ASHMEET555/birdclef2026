@@ -1,0 +1,44 @@
+# Local full training configuration
+# Runs complete training pipeline locally on subset of data
+# Produces Kaggle-compatible model weights
+# Usage: python src/train.py --config configs/local_full.yaml --fold 0
+
+_base: "kaggle_base.yaml"
+
+# Override paths for local development
+paths:
+  base: "./data"
+  train_audio: "./data/train_audio"
+  train_meta: "./data/train.csv"  # train.csv is the metadata file
+  taxonomy: "./data/taxonomy.csv"
+  train_soundscapes: "./data/train_soundscapes"
+  train_sc_labels: "./data/train_soundscapes_labels.csv"
+  precomputed: "./precomputed"
+  checkpoints: "./checkpoints"
+  output: "./outputs"
+  experiments: "./experiments"
+
+# Local full training settings
+training:
+  epochs: 5  # Shorter for local testing
+  batch_size: 16  # Suitable for local GPU
+  num_workers: 2
+
+# Local development mode
+debug:
+  enabled: true
+  mode: "full_pipeline"  # full_pipeline vs quick_test
+  max_samples: 2000  # Use 2000 samples (vs 50 for quick test)
+  max_sc_windows: 500  # Use 500 soundscape windows
+  save_kaggle_compatible: true  # Save weights in Kaggle-compatible format
+
+# Disable Kaggle-specific features
+kaggle:
+  enabled: false
+  save_artifacts: false
+  internet_enabled: true
+
+# Enable validation on soundscape data for more realistic evaluation
+validation:
+  use_soundscape_val: true  # Use held-out soundscapes for validation
+  soundscape_weight: 0.3  # Weight soundscape validation in final score
