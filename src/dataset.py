@@ -180,15 +180,39 @@ class FocalDataset(Dataset):
                     if isinstance(perch_label, np.ndarray):
                         if perch_label.shape == (234,):
                             perch_labels[filename] = perch_label
+                        else:
+                            raise ValueError(
+                                f"Perch label shape {perch_label.shape} is not (234,) for {perch_file}. "
+                                "Project embeddings to 234-class probabilities before training."
+                            )
                     elif isinstance(perch_label, dict):
                         # If Perch saves dict with 'logits' or 'probabilities' key
                         if "probabilities" in perch_label:
                             probs = perch_label["probabilities"]
                             if probs.shape == (234,):
                                 perch_labels[filename] = probs
+                            else:
+                                raise ValueError(
+                                    f"Perch probabilities shape {probs.shape} is not (234,) for {perch_file}. "
+                                    "Project embeddings to 234-class probabilities before training."
+                                )
+                        elif "logits" in perch_label:
+                            logits = perch_label["logits"]
+                            if logits.shape == (234,):
+                                perch_labels[filename] = 1.0 / (1.0 + np.exp(-logits))
+                            else:
+                                raise ValueError(
+                                    f"Perch logits shape {logits.shape} is not (234,) for {perch_file}. "
+                                    "Project embeddings to 234-class probabilities before training."
+                                )
+                        else:
+                            raise ValueError(
+                                f"Unrecognized Perch label format for {perch_file}. "
+                                "Expected numpy array or dict with 'probabilities' or 'logits'."
+                            )
                 except Exception as e:
-                    # Silently skip files that fail to load
-                    pass
+                    # Surface Perch format errors instead of silently skipping
+                    raise
 
         if len(perch_labels) == 0:
             print("Warning: No valid Perch labels found, falling back to hard labels only")

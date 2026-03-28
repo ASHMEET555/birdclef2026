@@ -202,6 +202,13 @@ def get_dataloaders(
         sc_windows_path = Path(precomputed_dir) / "metadata" / "soundscape_windows.csv"
         if sc_windows_path.exists():
             sc_windows_df = pd.read_csv(sc_windows_path)
+            sc_windows_df = sc_windows_df.drop_duplicates().reset_index(drop=True)
+
+            if "split" not in sc_windows_df.columns:
+                raise ValueError(
+                    "soundscape_windows.csv is missing required 'split' column. "
+                    "Regenerate precomputed metadata with the latest pipeline."
+                )
 
             # Filter to validation split (held-out soundscape files)
             val_sc_df = sc_windows_df[sc_windows_df["split"] == "labeled_val"].reset_index(drop=True)

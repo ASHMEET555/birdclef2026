@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import math
 from pathlib import Path
 
@@ -15,17 +16,23 @@ def make_label_vector(
     le: LabelEncoder,
     n_classes: int = 234,
     secondary_soft: float = 0.3,
+    inat_to_primary: dict[str, str] | None = None,
 ) -> np.ndarray:
     """Create multi-label target vector with hard primary and soft secondary labels."""
     out = np.zeros(n_classes, dtype=np.float32)
 
-    if isinstance(primary_label, str) and primary_label in le.classes_:
-        out[int(le.transform([primary_label])[0])] = 1.0
+    primary = str(primary_label) if primary_label is not None else ""
+    if inat_to_primary and primary in inat_to_primary:
+        primary = inat_to_primary[primary]
+
+    if primary in le.classes_:
+        out[int(le.transform([primary])[0])] = 1.0
 
     if isinstance(secondary_labels, str) and secondary_labels.strip() and secondary_labels != "[]":
-        clean = secondary_labels.strip().strip("[]")
-        tokens = [tok.strip().strip("'\"") for tok in clean.split() if tok.strip()]
+        tokens = _parse_secondary_labels(secondary_labels)
         for token in tokens:
+            if inat_to_primary and token in inat_to_primary:
+                token = inat_to_primary[token]
             if token in le.classes_:
                 idx = int(le.transform([token])[0])
                 out[idx] = max(out[idx], np.float32(secondary_soft))
@@ -33,16 +40,48 @@ def make_label_vector(
     return out
 
 
-def make_soundscape_label(species_str: str, le: LabelEncoder, n_classes: int = 234) -> np.ndarray:
+def make_soundscape_label(
+    species_str: str,
+    le: LabelEncoder,
+    n_classes: int = 234,
+    inat_to_primary: dict[str, str] | None = None,
+) -> np.ndarray:
     """Build one multi-hot vector from semicolon-separated soundscape species labels."""
     out = np.zeros(n_classes, dtype=np.float32)
     if not isinstance(species_str, str) or not species_str.strip():
         return out
 
     for sp in [x.strip() for x in species_str.split(";") if x.strip()]:
+        if inat_to_primary and sp in inat_to_primary:
+            sp = inat_to_primary[sp]
         if sp in le.classes_:
             out[int(le.transform([sp])[0])] = 1.0
     return out
+
+
+def build_inat_mapping(taxonomy_df) -> dict[str, str]:
+    """Build mapping of iNat taxon IDs to primary_label strings."""
+    mapping: dict[str, str] = {}
+    for _, row in taxonomy_df.iterrows():
+        inat_id = str(row.get("inat_taxon_id", "")).strip()
+        primary = str(row.get("primary_label", "")).strip()
+        if inat_id and primary:
+            mapping[inat_id] = primary
+    return mapping
+
+
+def _parse_secondary_labels(secondary_labels: str) -> list[str]:
+    """Parse secondary_labels string safely into a list of tokens."""
+    try:
+        parsed = ast.literal_eval(secondary_labels)
+        if isinstance(parsed, list):
+            return [str(x).strip().strip("'\"") for x in parsed if str(x).strip()]
+    except (ValueError, SyntaxError):
+        pass
+
+    # Fallback: split on whitespace or semicolons
+    cleaned = secondary_labels.replace(";", " ")
+    return [tok.strip().strip("'\"") for tok in cleaned.split() if tok.strip()]
 
 
 def compute_sample_weight(
