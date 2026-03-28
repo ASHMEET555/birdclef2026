@@ -1,0 +1,31 @@
+# Kaggle quick test configuration for pipeline verification
+# Usage: python src/train.py --config configs/kaggle_test.yaml --fold 0
+
+_base: "kaggle_base.yaml"
+
+# Quick debug training settings
+training:
+  epochs: 1
+  batch_size: 8
+  num_workers: 2
+
+# Stage 2: Hard labels only
+labels:
+  perch_alpha: 0.0
+
+# Debug mode settings
+debug:
+  enabled: true
+  mode: "quick_test"
+  max_samples: 50
+  max_sc_windows: 10
+
+# Validation settings
+validation:
+  use_soundscape_val: false
+
+# Kaggle settings
+kaggle:
+  enabled: true
+  save_artifacts: false
+  internet_enabled: false

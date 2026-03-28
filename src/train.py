@@ -387,6 +387,7 @@ def train_one_epoch(
         # Convert to mel spectrogram
         with amp.autocast(device_settings['device_type']):
             mel = mel_transform(waveforms)  # [B, 1, 128, 313]
+            mel = torch.nan_to_num(mel, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Forward pass
         optimizer.zero_grad(set_to_none=True)
@@ -394,6 +395,10 @@ def train_one_epoch(
         with amp.autocast(device_settings['device_type']):
             logits, probs = model(mel)
             loss = criterion(logits, labels)
+
+        if not torch.isfinite(loss):
+            optimizer.zero_grad(set_to_none=True)
+            continue
 
         # Backward pass with gradient scaling
         scaler.scale(loss).backward()
@@ -461,10 +466,14 @@ def validate(
 
         # Convert to mel (no augmentation)
         mel = mel_transform(waveforms)
+        mel = torch.nan_to_num(mel, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Forward pass
         logits, probs = model(mel)
         loss = criterion(logits, labels)
+
+        if not torch.isfinite(loss):
+            continue
 
         # Track loss and predictions
         running_loss += loss.item()
@@ -478,6 +487,8 @@ def validate(
     # Concatenate all predictions
     all_probs = np.concatenate(all_probs, axis=0)  # [N, 234]
     all_labels = np.concatenate(all_labels, axis=0)  # [N, 234]
+    all_probs = np.nan_to_num(all_probs, nan=0.0, posinf=1.0, neginf=0.0)
+    all_labels = np.nan_to_num(all_labels, nan=0.0, posinf=1.0, neginf=0.0)
 
     # Compute metrics
     avg_loss = running_loss / max(num_batches, 1)

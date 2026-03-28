@@ -30,6 +30,48 @@ except (ImportError, OSError, Exception) as e:
     HAS_TORCHAUDIO = False
     HAS_PCEN = False
 
+class TorchPCEN(nn.Module):
+    """Torch-based PCEN fallback to keep computation on GPU.
+
+    Implements the standard PCEN formula with an IIR smoother over time.
+    """
+
+    def __init__(
+        self,
+        eps: float = 1e-6,
+        s: float = 0.025,
+        alpha: float = 0.98,
+        delta: float = 2.0,
+        r: float = 0.5,
+    ):
+        super().__init__()
+        self.eps = eps
+        self.s = s
+        self.alpha = alpha
+        self.delta = delta
+        self.r = r
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply PCEN to a mel spectrogram.
+
+        Args:
+            x: [B, n_mels, time]
+
+        Returns:
+            PCEN-normalized tensor [B, n_mels, time]
+        """
+        # IIR smoothing along time dimension
+        b, m, t = x.shape
+        m_t = torch.zeros((b, m), device=x.device, dtype=x.dtype)
+        out = []
+        for i in range(t):
+            m_t = (1.0 - self.s) * m_t + self.s * x[:, :, i]
+            smooth = m_t
+            pcen = (x[:, :, i] / (self.eps + smooth).pow(self.alpha) + self.delta).pow(self.r) - self.delta**self.r
+            out.append(pcen)
+
+        return torch.stack(out, dim=2)
+
 
 @dataclass
 class MelSpecConfig:
@@ -116,14 +158,25 @@ class MelPCENTransform(nn.Module):
                 delta=2.0,
                 r=0.5,
             )
+            self.use_torch_pcen = False
         else:
             if config.use_pcen and not HAS_PCEN:
-                print("Warning: PCEN not available in this torchaudio version, falling back to log-mel")
+                print("Warning: torchaudio PCEN not available, falling back to torch PCEN")
             self.pcen = None
+            self.use_torch_pcen = config.use_pcen
+            if self.use_torch_pcen:
+                self.torch_pcen = TorchPCEN(
+                    eps=1e-6,
+                    s=0.025,
+                    alpha=0.98,
+                    delta=2.0,
+                    r=0.5,
+                )
             # Fallback to log-mel with amplitude to dB
             self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(
                 stype="power", top_db=config.top_db
             )
+        self._warned_torch_pcen = False
 
     def forward(self, waveform: torch.Tensor) -> torch.Tensor:
         """Convert waveform to mel features.
@@ -146,6 +199,11 @@ class MelPCENTransform(nn.Module):
         if self.pcen is not None:
             # PCEN normalization
             mel = self.pcen(mel)
+        elif self.use_torch_pcen:
+            if not self._warned_torch_pcen:
+                print("Using torch PCEN fallback (torchaudio PCEN unavailable)")
+                self._warned_torch_pcen = True
+            mel = self.torch_pcen(mel)
         else:
             # Log-mel fallback
             mel = self.amplitude_to_db(mel)

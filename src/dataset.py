@@ -250,7 +250,12 @@ class FocalDataset(Dataset):
             # Exactly 5 seconds - use as-is
             pass
 
-        return torch.from_numpy(waveform).float()
+        waveform = torch.from_numpy(waveform).float()
+        # Guard against corrupt audio producing NaN/Inf
+        waveform = torch.nan_to_num(waveform, nan=0.0, posinf=0.0, neginf=0.0)
+        waveform = torch.clamp(waveform, -1.0, 1.0)
+
+        return waveform
 
     def __getitem__(self, idx: int) -> dict:
         """Get one sample.
@@ -289,6 +294,10 @@ class FocalDataset(Dataset):
         else:
             label = hard_label
 
+        # Sanitize labels to avoid NaN propagation into loss
+        label = np.nan_to_num(label, nan=0.0, posinf=1.0, neginf=0.0)
+        label = np.clip(label, 0.0, 1.0)
+
         # Apply species down-weighting (e.g., Domestic Dog noise)
         primary_label_id = str(row.get("primary_label", ""))
         if primary_label_id in DOWNWEIGHT_SPECIES:
@@ -299,7 +308,9 @@ class FocalDataset(Dataset):
                 label[species_idx] *= downweight_factor
 
         # Get sample weight
-        sample_weight = self.sample_weights[idx]
+        sample_weight = float(self.sample_weights[idx])
+        if not np.isfinite(sample_weight) or sample_weight <= 0.0:
+            sample_weight = 1.0
 
         # Get class name for per-class AUC tracking
         class_name = row.get("class_name", "Unknown")
@@ -307,7 +318,7 @@ class FocalDataset(Dataset):
         return {
             "waveform": waveform,
             "label": torch.from_numpy(label).float(),
-            "sample_weight": float(sample_weight),
+            "sample_weight": sample_weight,
             "filename": filename,
             "class_name": class_name,
             "primary_label": primary_label_id,
