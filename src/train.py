@@ -807,99 +807,103 @@ def train(config: dict, fold: int = 0):
             mel_transform=mel_transform,
             epoch=epoch,
         )
-
-        # Validate on focal clips
-        val_metrics = validate(
-            model=model,
-            loader=val_loader,
-            criterion=criterion,
-            config=config,
-            device=device,
-            mel_transform=mel_transform,
-            taxonomy_df=taxonomy_df,
-            epoch=epoch,
-        )
-
-        # Optional soundscape validation
-        sc_val_loader = config.get("_soundscape_val_loader")
-        if sc_val_loader is not None:
-            print(f"  Running soundscape validation...")
-            sc_val_metrics = validate(
-                model=model,
-                loader=sc_val_loader,
-                criterion=criterion,
-                config=config,
-                device=device,
-                mel_transform=mel_transform,
-                taxonomy_df=taxonomy_df,
-                epoch=epoch,
-            )
-
-            # Weight soundscape validation in final score
-            sc_weight = config.get("validation", {}).get("soundscape_weight", 0.3)
-            focal_weight = 1.0 - sc_weight
-
-            # Weighted combination of focal and soundscape validation
-            combined_auc = (
-                focal_weight * val_metrics["overall_auc"] +
-                sc_weight * sc_val_metrics["overall_auc"]
-            )
-
-            val_metrics["sc_val_auc"] = sc_val_metrics["overall_auc"]
-            val_metrics["combined_auc"] = combined_auc
-
-            print(f"    Soundscape AUC: {sc_val_metrics['overall_auc']:.4f}")
-            print(f"    Combined AUC: {combined_auc:.4f} (focal={focal_weight:.1f}, sc={sc_weight:.1f})")
-        else:
-            val_metrics["sc_val_auc"] = 0.0
-            val_metrics["combined_auc"] = val_metrics["overall_auc"]
-
-        # Combine metrics
-        all_metrics = {**train_metrics, **val_metrics}
-
-        # Print summary
-        print(f"\nEpoch {epoch} Summary:")
+        # Report loss each epoch
         print(f"  Train Loss: {train_metrics['train_loss']:.4f}")
-        print(f"  Val Loss: {val_metrics['val_loss']:.4f}")
-        print(f"  Overall AUC: {val_metrics['overall_auc']:.4f}")
-        print(f"  Aves AUC: {val_metrics.get('Aves_auc', 0.0):.4f}")
-        print(f"  Amphibia AUC: {val_metrics.get('Amphibia_auc', 0.0):.4f}")
-        print(f"  Insecta AUC: {val_metrics.get('Insecta_auc', 0.0):.4f}")
-        print(f"  Mammalia AUC: {val_metrics.get('Mammalia_auc', 0.0):.4f}")
 
-        # Check if best (use combined AUC if soundscape validation enabled)
-        if val_metrics.get("sc_val_auc", 0.0) > 0.0:
-            current_auc = val_metrics["combined_auc"]
-        else:
-            current_auc = val_metrics["overall_auc"]
+        # Print a brief summary every 5 epochs
+        if epoch % 5 == 0:
+            print(f"  Summary @ epoch {epoch}: train_loss={train_metrics['train_loss']:.4f}")
 
-        is_best = current_auc > best_auc
-        if is_best:
-            best_auc = current_auc
-            if val_metrics.get("sc_val_auc", 0.0) > 0.0:
-                print(f"  ★ New best combined AUC: {best_auc:.4f}")
-            else:
-                print(f"  ★ New best AUC: {best_auc:.4f}")
-
-        # Save checkpoint
+        # Save checkpoint (training-only metrics)
         save_checkpoint(
             model=model,
             optimizer=optimizer,
             scheduler=scheduler,
             epoch=epoch,
-            metrics=all_metrics,
+            metrics=train_metrics,
             config=config,
-            is_best=is_best,
+            is_best=False,
         )
 
-        # Log experiment
-        log_experiment(config, fold, epoch, all_metrics)
+        # Log experiment (training-only)
+        log_experiment(config, fold, epoch, train_metrics)
 
         # Step scheduler
         if epoch <= warmup_epochs and warmup_epochs > 0:
             warmup_scheduler.step()
         elif scheduler is not None:
             scheduler.step()
+
+    # Final validation after training completes
+    val_metrics = validate(
+        model=model,
+        loader=val_loader,
+        criterion=criterion,
+        config=config,
+        device=device,
+        mel_transform=mel_transform,
+        taxonomy_df=taxonomy_df,
+        epoch=epochs,
+    )
+
+    # Optional soundscape validation
+    sc_val_loader = config.get("_soundscape_val_loader")
+    if sc_val_loader is not None:
+        print(f"  Running soundscape validation...")
+        sc_val_metrics = validate(
+            model=model,
+            loader=sc_val_loader,
+            criterion=criterion,
+            config=config,
+            device=device,
+            mel_transform=mel_transform,
+            taxonomy_df=taxonomy_df,
+            epoch=epochs,
+        )
+
+        # Weight soundscape validation in final score
+        sc_weight = config.get("validation", {}).get("soundscape_weight", 0.3)
+        focal_weight = 1.0 - sc_weight
+
+        # Weighted combination of focal and soundscape validation
+        combined_auc = (
+            focal_weight * val_metrics["overall_auc"] +
+            sc_weight * sc_val_metrics["overall_auc"]
+        )
+
+        val_metrics["sc_val_auc"] = sc_val_metrics["overall_auc"]
+        val_metrics["combined_auc"] = combined_auc
+
+        print(f"    Soundscape AUC: {sc_val_metrics['overall_auc']:.4f}")
+        print(f"    Combined AUC: {combined_auc:.4f} (focal={focal_weight:.1f}, sc={sc_weight:.1f})")
+    else:
+        val_metrics["sc_val_auc"] = 0.0
+        val_metrics["combined_auc"] = val_metrics["overall_auc"]
+
+    # Combine and report final metrics
+    all_metrics = {**val_metrics}
+    best_auc = val_metrics["combined_auc"]
+
+    print(f"\nFinal Validation Summary:")
+    print(f"  Val Loss: {val_metrics['val_loss']:.4f}")
+    print(f"  Overall AUC: {val_metrics['overall_auc']:.4f}")
+    print(f"  Aves AUC: {val_metrics.get('Aves_auc', 0.0):.4f}")
+    print(f"  Amphibia AUC: {val_metrics.get('Amphibia_auc', 0.0):.4f}")
+    print(f"  Insecta AUC: {val_metrics.get('Insecta_auc', 0.0):.4f}")
+    print(f"  Mammalia AUC: {val_metrics.get('Mammalia_auc', 0.0):.4f}")
+
+    # Save final checkpoint and log
+    save_checkpoint(
+        model=model,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        epoch=epochs,
+        metrics=all_metrics,
+        config=config,
+        is_best=True,
+    )
+
+    log_experiment(config, fold, epochs, all_metrics, notes="final_validation")
 
     print(f"\n{'='*60}")
     print(f"Training complete!")
