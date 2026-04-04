@@ -30,7 +30,7 @@ model:
 
 # Core training hyperparameters
 training:
-  epochs: 30
+  epochs: 6
   learning_rate: 5.0e-4
   weight_decay: 1.0e-6
   pin_memory: true
